@@ -1,30 +1,55 @@
 # Slurm Viewer
 
-This is a command-line tool visualizing node usage in Princeton Ionic and Neuronic
-
+This is a command-line tool visualizing node usage in Princeton Ionic and Neuronic.
+This is a CLI-replica of `clusterstat/realtime`
 
 <picture>
   <img src="./docs/screenshot.svg">
 </picture>
 
- pyinstaller ./slurmcmd.py --onefile --add-data="./slurmcmd.tcss:." --exclude-module numpy --exclude-module matplotlib --exclude-module jedi
 
+## Use
 
-pip install textual
+### 1. Quick method
 
-`python /n/fs/jc-project/slurmcmd/slurmcmd.py`
-
-or 
-
-add the following in the `~/.bashrc`
+I have included binary in my personal folder. 
+Add the following line at the end of your `~/.bashrc`
 
 ```bash
-
-jihoon() {
-    python /n/fs/jc-project/slurmcmd/slurmcmd.py
+sv() {
+    /n/fs/jc-project/slurmcmd/dist/slurmviewer
 }
-
 ```
 
-and type `jihoon` on your cmd after restarting the terminal
+Restart the terminal, and type `sv`
 
+
+### 2. Download Binary
+
+You can also download binary from [Releases](https://github.com/a6o/Slurm-Viewer/releases).
+It will probably have same file as above. 
+
+### 3. Run using Python.
+
+1. Clone this repository.
+2. """
+pip install textual
+python ./app.py
+"""
+
+### 4. Make binary
+
+1. First install pyinstaller
+```bash
+pip install pyinstaller
+```
+
+2. Then, run following
+```bash
+pyinstaller ./app.py --onefile --add-data="./style.tcss:." --add-data="./info.txt:." --exclude-module numpy --exclude-module matplotlib --exclude-module jedi --hidden-import textual.widgets._markdown_viewer -n slurmviewer
+```
+
+3. run `./dist/slurmviewer`
+
+## License
+I claim no rights to this code. Do whatever you want with it. 

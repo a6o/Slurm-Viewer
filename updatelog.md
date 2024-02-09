@@ -4,7 +4,12 @@
 
 Initial Program
 
-### v1.0.1
+### v1.0.1 (2024/02/09)
 
 - Click to leave help box
 - Error is now using Textual app.notify
+- added screenshot
+- Info context is moved to separate file
+- Getting real names is done in startup. Removed Get names from the bottom bar. (Key still works!)
+- Switched O and P.
+- Horizontal scrollbar bug fix

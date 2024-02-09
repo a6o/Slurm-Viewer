@@ -2,9 +2,10 @@ InfoScreen {
     align: center middle;
 }
 
-InfoScreen Label {
-    padding: 0 2;
-    width: 60;
+InfoScreen MarkdownViewer {
+    padding: 2 2;
+    max-width: 100;
+    width: 50%;
     height: auto;
     border: thick $background 80%;
     background: $surface;
@@ -40,6 +41,7 @@ Vertical#left {
 Vertical#accounts {
     height: auto;
     width: auto;
+    max-width: 999;
 }
 
 Account DataTable {
@@ -53,18 +55,19 @@ Account DataTable {
     height: 50;
     width: auto;
     overflow-x: hidden;
-
 }
 
 Horizontal {
-    width:auto;
-    overflow-x: hidden;
-}
-
-Container#maincontainer {
+    max-width:999;
     overflow-x: auto;
 }
 
+
 Vertical#right Static {
     margin-left: 1;
+}
+
+Vertical#right {
+    width: auto;
+    max-width: 999;
 }

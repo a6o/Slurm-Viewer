@@ -2,3 +2,4 @@ dist
 build
 old
 __pycache__
+*.spec

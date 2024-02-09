@@ -20,6 +20,7 @@ from asyncio import sleep
 import asyncio
 import base64
 import datetime
+from textual.widgets import MarkdownViewer
 
 def setnode():
     cmd = f"sinfo -o '%100R %100n %100G %100C %100e %100m %100T %100E' -h --sort '+Rn'"
@@ -281,7 +282,7 @@ class InfoScreen(ModalScreen):
         super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
-        yield Label(self.label)
+        yield MarkdownViewer(self.label, show_table_of_contents=False)
 
     def on_key(self, event) -> None:
         self.app.pop_screen()
@@ -294,7 +295,7 @@ class InfoScreen(ModalScreen):
 class Slurm(App):
     """A Textual app to manage stopwatches."""
 
-    CSS_PATH = "slurmcmd.tcss"
+    CSS_PATH = "style.tcss"
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
@@ -304,7 +305,7 @@ class Slurm(App):
                 Binding("home", "home", "Scroll Up", show=False, priority=True),
                 Binding("end", "end", "Scroll Down", show=False, priority=True),    
                 Binding("s", "screens", "", show=False),    
-                ('n', 'getnames', 'Show Names'),
+                Binding('n', 'getnames', 'Show Names', show=False),
                 ("q", "quit", "Quit"),
                 ("?", 'help', 'Help'),
                ]
@@ -316,7 +317,8 @@ class Slurm(App):
         yield Footer()
         # yield Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), DataTable(id='details'), id='maincontainer')
         # yield Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left')
-        yield Container(Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), Vertical(Static(), DataTable(show_cursor=False, id='details'), id='right')), id='maincontainer')
+        yield Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), 
+                        Vertical(Static(), DataTable(show_cursor=False, id='details'), id='right'))
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -357,15 +359,15 @@ class Slurm(App):
         self.title = self.partition
         self.partition_cycle = None
 
+        asyncio.create_task(self.action_refresh(getname=True))
 
-        asyncio.create_task(self.action_refresh())
         
         self.updated_time = time.time()
         self.update_render = self.set_interval(
             1, self.update_subtitle
         )  
 
-    async def action_refresh(self) -> None:
+    async def action_refresh(self, getname=False) -> None:
         """An action to toggle dark mode."""
 
         table = self.query_one('DataTable#nodes')
@@ -377,6 +379,9 @@ class Slurm(App):
 
         data_of_partition = get_data(nodelist)
         self.data_of_partition = data_of_partition
+        
+        if getname:
+            self.action_getnames(refresh=False)
 
         if not self.partition_cycle:
             self.partition_cycle = deque(list(data_of_partition.keys())[1:] + ['all'])
@@ -421,14 +426,14 @@ class Slurm(App):
     def action_cycle_partition(self):
 
         # self.partition = next(self.partition_cycle
-        self.partition_cycle.rotate(1)
+        self.partition_cycle.rotate(-1)
         self.partition = self.partition_cycle[0]
         self.title = self.partition
         asyncio.create_task(self.action_refresh())
 
     def action_cycle_partition_b(self):
         
-        self.partition_cycle.rotate(-1)
+        self.partition_cycle.rotate(1)
         self.partition = self.partition_cycle[0]
 
 
@@ -438,7 +443,6 @@ class Slurm(App):
     def action_scrollup(self):
         data_table = self.query_one('Vertical#left')
         data_table.scroll_up(animate=False)
-        print('hi')
 
     def action_scrolldown(self):
         data_table = self.query_one('Vertical#left')
@@ -455,13 +459,14 @@ class Slurm(App):
         data_table.scroll_end()
 
     def action_help(self):
-        self.push_screen(InfoScreen("""
-Ver. 1.0.0
 
+        data_table = self.query_one('Vertical#left')
+        data_table = self.query_one('Vertical#right')
 
-
-Press any key to close.        
-"""))
+        __location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        info = open(os.path.join(__location__, 'info.txt')).read()
+        self.push_screen(InfoScreen(info))
 
     def action_quit(self):
         home = expanduser("~")
@@ -472,12 +477,6 @@ Press any key to close.
         
         self.exit()
 
-
-    def on_key(self, event):
-        print(self.screen.size)
-        # print('hi')
-        # d = self.query_one('#details')
-        # print(d.dock_gutter)
 
     def on_data_table_row_selected(self, message):
 
@@ -544,7 +543,7 @@ Press any key to close.
 
                     )
 
-    def action_getnames(self):
+    def action_getnames(self, refresh=True):
 
         allthename = set([job['username'] for node in self.data_of_partition['all']['data_of_nodes'].values() for job in node['jobs']])
         
@@ -558,7 +557,8 @@ Press any key to close.
 
         self.names = {**self.names, **got_names}
 
-        asyncio.create_task(self.action_refresh())
+        if refresh:
+            asyncio.create_task(self.action_refresh())
 
     def action_screens(self, **kwargs):
 

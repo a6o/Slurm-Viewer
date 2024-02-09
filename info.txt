@@ -1,0 +1,23 @@
+Slurm Viewer
+by Jihoon
+Ver. 1.0.1
+
+Navigate:  
+You need to use terminal and shell prompt that allows mouse movement. Current tool does not work with keyboard only.
+Click on the any row of the left panel to see specific jobs on the right. 
+
+Keys:
+- D: Toggle dark mode on and off
+- R: Refresh. This tool does not show in real-time! You need to refresh manually.
+- S: Take a screenshot, and save to your home directory.
+- N: Fetch all the unknown names. This does not work in Neuronic. You might want to copy your saved settings from Ionic to Neuronic manually.
+- O,P: Move between partitions
+- ?: How-to Screen. (This screen)
+- Q: Quit.
+
+
+
+Settings are saved in ~/.jihoon. We currently store:  
+- Last visited partition, so that when startup, it will show the same partition.
+- Dark mode or not
+- NetID to real name. (You might want to copy this from Ionic to Neuronic)
