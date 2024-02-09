@@ -2,7 +2,7 @@
 
 This is a command-line tool visualizing node usage in Princeton Ionic and Neuronic
 
-![Alt text](./doc/screenshot.svg)
+![Alt text](./docs/screenshot.svg)
 
  pyinstaller ./slurmcmd.py --onefile --add-data="./slurmcmd.tcss:." --exclude-module numpy --exclude-module matplotlib --exclude-module jedi
 
