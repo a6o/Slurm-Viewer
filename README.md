@@ -33,10 +33,9 @@ It will probably have same file as above.
 
 1. Clone this repository.
 2. 
-"""
+```
 pip install textual
-python ./app.py
-"""
+python ./app.py```
 
 ### 4. Make binary
 
