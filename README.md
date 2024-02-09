@@ -10,6 +10,9 @@ This is a CLI-replica of `clusterstat/realtime`
 
 ## Use
 
+This app needs cursor input! Make sure your shell prompt and your terminal allows both. 
+(all modern terminal allows cursor input though.)
+
 ### 1. Quick method
 
 I have included binary in my personal folder. 
