@@ -463,9 +463,12 @@ class Slurm(App):
         data_table = self.query_one('Vertical#left')
         data_table = self.query_one('Vertical#right')
 
-        __location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
-        info = open(os.path.join(__location__, 'info.txt')).read()
+        if os.path.exists("./info.txt"): # if binary
+            info = open("./info.txt").read()
+        else:
+            __location__ = os.path.realpath( # if running from python
+        os.path.join(os.getcwd(), os.path.dirname(__file__)))
+            info = open(os.path.join(__location__, 'info.txt')).read()
         self.push_screen(InfoScreen(info))
 
     def action_quit(self):
