@@ -13,3 +13,6 @@ Initial Program
 - Getting real names is done in startup. Removed Get names from the bottom bar. (Key still works!)
 - Switched O and P.
 - Horizontal scrollbar bug fix
+
+### v1.0.2
+- action palette is now better

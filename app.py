@@ -21,6 +21,8 @@ import asyncio
 import base64
 import datetime
 from textual.widgets import MarkdownViewer
+from textual.command import Hit, Hits, Provider
+from functools import partial
 
 def setnode():
     cmd = f"sinfo -o '%100R %100n %100G %100C %100e %100m %100T %100E' -h --sort '+Rn'"
@@ -290,11 +292,65 @@ class InfoScreen(ModalScreen):
     def on_click(self, event):
         self.app.pop_screen()
 
+class Search(Provider):
+    """A command provider to open a Python file in the current working directory."""
+
+
+    async def startup(self) -> None:  
+
+
+        """Called once when the command palette is opened, prior to searching."""
+        self.partitions = self.app.partition_cycle
+
+
+    async def search(self, query: str) -> Hits:  
+
+
+        """Search for Python files."""
+        matcher = self.matcher(query)  
+
+
+
+        app = self.app
+        assert isinstance(app, Slurm)
+
+        print(self.partitions)
+
+        for partition in list(self.partitions):
+            command = f"Change to partition {str(partition)}"
+            score = matcher.match(command)  
+
+            if score > 0:
+                yield Hit(
+                    score,
+                    matcher.highlight(command), 
+
+                    partial(app.change_partition, partition),
+                    help="Open this partition",
+                )
+                
+        score = matcher.match('Quit the application')  
+        if score > 0:
+            yield Hit(
+                score,
+                matcher.highlight('Quit the application'), 
+                app.action_quit,
+                help="Quit the application as soon as possible",
+            )
+        score = matcher.match('Toggle light/dark mode')  
+        if score > 0:
+            yield Hit(
+                score,
+                matcher.highlight('Toggle light/dark mode'), 
+                app.action_toggle_dark,
+                help="Toggle the application between light and dark mode",
+            )
 
 
 class Slurm(App):
     """A Textual app to manage stopwatches."""
 
+    COMMANDS = {Search}
     CSS_PATH = "style.tcss"
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
                 ("r", "refresh", "Refresh"),
@@ -479,6 +535,11 @@ class Slurm(App):
         json.dump(self.names, open(os.path.join(home, '.jihoon', 'names.json'), 'w'))
         
         self.exit()
+
+    def change_partition(self, partition):
+        self.partition = partition
+        self.title = self.partition
+        asyncio.create_task(self.action_refresh())
 
 
     def on_data_table_row_selected(self, message):

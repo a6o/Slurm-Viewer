@@ -11,9 +11,10 @@ Keys:
 - R: Refresh. This tool does not show in real-time! You need to refresh manually.
 - S: Take a screenshot, and save to your home directory.
 - N: Fetch all the unknown names. This does not work in Neuronic. You might want to copy your saved settings from Ionic to Neuronic manually.
-- O,P: Move between partitions
+- O,P: Move between partitions. Partition names shown above
 - ?: How-to Screen. (This screen)
 - Q: Quit.
+- ctrl + \\: Action Palette. You can type the partition you want to go from here as well. 
 
 
 

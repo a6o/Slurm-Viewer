@@ -30,7 +30,7 @@ Restart the terminal, and type `sv`
 ### 2. Download Binary
 
 You can also download binary from [Releases](https://github.com/a6o/Slurm-Viewer/releases).
-It will probably have same file as above. 
+Note that uploaded binary might not be the same as the most recent updates. 
 
 ### 3. Run using Python.
 
