@@ -32,7 +32,8 @@ It will probably have same file as above.
 ### 3. Run using Python.
 
 1. Clone this repository.
-2. """
+2. 
+"""
 pip install textual
 python ./app.py
 """
