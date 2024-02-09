@@ -32,10 +32,11 @@ It will probably have same file as above.
 ### 3. Run using Python.
 
 1. Clone this repository.
-2. 
+2. Install Textual, and run!
 ```
 pip install textual
-python ./app.py```
+python ./app.py
+```
 
 ### 4. Make binary
 
