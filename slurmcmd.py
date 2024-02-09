@@ -1,7 +1,3 @@
-#TODO: single cursor for all the tables
-#TODO: left panel and right panel (show detail panel whatever the scroll)
-
-
 import subprocess
 from textwrap import wrap
 from collections import defaultdict
@@ -23,6 +19,7 @@ from textual.reactive import reactive
 from asyncio import sleep
 import asyncio
 import base64
+import datetime
 
 def setnode():
     cmd = f"sinfo -o '%100R %100n %100G %100C %100e %100m %100T %100E' -h --sort '+Rn'"
@@ -289,6 +286,10 @@ class InfoScreen(ModalScreen):
     def on_key(self, event) -> None:
         self.app.pop_screen()
 
+    def on_click(self, event):
+        self.app.pop_screen()
+
+
 
 class Slurm(App):
     """A Textual app to manage stopwatches."""
@@ -301,7 +302,8 @@ class Slurm(App):
                 Binding("pageup", "scrollup", "Scroll Up", show=False, priority=True),
                 Binding("pagedown", "scrolldown", "Scroll Down", show=False, priority=True),
                 Binding("home", "home", "Scroll Up", show=False, priority=True),
-                Binding("end", "end", "Scroll Down", show=False, priority=True),
+                Binding("end", "end", "Scroll Down", show=False, priority=True),    
+                Binding("s", "screens", "", show=False),    
                 ('n', 'getnames', 'Show Names'),
                 ("q", "quit", "Quit"),
                 ("?", 'help', 'Help'),
@@ -552,13 +554,18 @@ Press any key to close.
         try:
             got_names = get_peoplename(list(missingname))
         except:
-            self.push_screen(InfoScreen('Cannot load new names!\nsome issue with getting the name from CS mail server!\npress any key to close.'))
+            self.notify('Cannot load new names!\nsome issue with getting the name from CS mail server!')
 
         self.names = {**self.names, **got_names}
 
         asyncio.create_task(self.action_refresh())
 
+    def action_screens(self, **kwargs):
 
+        home = expanduser("~")
+        filename = 'screenshot_{date:%Y-%m-%d_%H-%M-%S}.svg'.format( date=datetime.datetime.now() )
+        self.action_screenshot(filename=filename, path=home)
+        self.notify(f'Screenshot added to your home directory.\n{os.path.join(home,filename)}')
 
 if __name__ == "__main__":
     app = Slurm()
