@@ -23,6 +23,10 @@ import datetime
 from textual.widgets import MarkdownViewer
 from textual.command import Hit, Hits, Provider
 from functools import partial
+import math
+from textual import on
+from textual.message import Message
+from textual import events
 
 def setnode():
     cmd = f"sinfo -o '%100R %100n %100G %100C %100e %100m %100T %100E' -h --sort '+Rn'"
@@ -222,6 +226,7 @@ class MyDataTable(DataTable):
     def on_blur(self):
         self.show_cursor = False
         
+        
 
 
 class Account(Static):
@@ -234,7 +239,7 @@ class Account(Static):
     def compose(self) -> ComposeResult:
         """Create child widgets of a stopwatch."""
         yield Static('Slurm Account: '+self.account)
-        yield MyDataTable(show_cursor=False)
+        yield MyDataTable(show_cursor=False, id=self.account)
 
     def on_mount(self) -> None:
         
@@ -272,8 +277,13 @@ class Account(Static):
 
             account_table.add_row()
 
-    def on_focus(self):
-        pass
+    
+    # def on_my_data_table_focus(self, event):
+    #     self.app.notify('hello')
+
+    # @on(DataTable.Blur)
+    # def on_my_data_table_blur(self, event):
+    #     self.app.notify('bellow')
 
 
 class InfoScreen(ModalScreen):
@@ -313,8 +323,6 @@ class Search(Provider):
 
         app = self.app
         assert isinstance(app, Slurm)
-
-        print(self.partitions)
 
         for partition in list(self.partitions):
             command = f"Change to partition {str(partition)}"
@@ -356,6 +364,8 @@ class Slurm(App):
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
                 ("p", "cycle_partition", "Change Partition"),
+                Binding("left", "cycle_partition_b", "", show=False),
+                Binding("right", "cycle_partition", '', show=False),
                 Binding("pageup", "scrollup", "Scroll Up", show=False, priority=True),
                 Binding("pagedown", "scrolldown", "Scroll Down", show=False, priority=True),
                 Binding("home", "home", "Scroll Up", show=False, priority=True),
@@ -390,7 +400,8 @@ class Slurm(App):
         detail_table = self.query_one('DataTable#details')
         detail_table.add_columns("User", "Job ID", "GPU", "CPU", "Mem", "Running Time (DD-HH:MM:SS)", "Remaining Time (DD-HH:MM:SS)")
         detail_table.zebra_stripes = True
-        
+        detail_table.can_focus=False
+
         home = expanduser("~")
         if os.path.exists(os.path.join(home, '.jihoon', 'settings.json')):
 
@@ -414,6 +425,10 @@ class Slurm(App):
         self.partition= init_setting['partition'] if 'partition' in init_setting else 'all'
         self.title = self.partition
         self.partition_cycle = None
+        self.vl = self.query_one('Vertical#left')
+        self.row_key = ''
+
+        
 
         asyncio.create_task(self.action_refresh(getname=True))
 
@@ -422,15 +437,38 @@ class Slurm(App):
         self.update_render = self.set_interval(
             1, self.update_subtitle
         )  
+        
 
-    async def action_refresh(self, getname=False) -> None:
+
+
+    async def action_refresh(self, getname=False, changed=False) -> None:
         """An action to toggle dark mode."""
+
+        
+
+
+
+        if self.screen.focus_chain and self.focused:
+            current_index = self.focused.id
+            current_cursor = self.focused.cursor_row
+        else:
+            current_index = 'nodes'
+            current_cursor = 0
+
+        print(current_cursor)
+
+
+        
+
+        self.screen.set_focus(None, scroll_visible=False)
+
+
+        dtable = self.query_one('DataTable#details')
+        dtable.clear()
 
         table = self.query_one('DataTable#nodes')
         table.clear()
 
-        # progress = self.query_one('IndeterminateProgress')
-        # progress.add_class('visible')
         nodelist = setnode()
 
         data_of_partition = get_data(nodelist)
@@ -442,6 +480,7 @@ class Slurm(App):
         if not self.partition_cycle:
             self.partition_cycle = deque(list(data_of_partition.keys())[1:] + ['all'])
 
+        
         for nodename, node in data_of_partition[self.partition]['data_of_nodes'].items():
             
 
@@ -457,14 +496,37 @@ class Slurm(App):
             Text(f"{node['mem_total'] - node['mem_usage']}G", justify="right"),
             Text(f"{node['mem_free']}G", justify="right"), key=f"0{nodename}"
             )
-            await sleep(0.001) # fake refresh UX :) you caught me
+            # await sleep(0.001) # fake refresh UX :) you caught me
 
         self.query_one("#accounts").remove_children()
-        for accountname in data_of_partition[self.partition]['data_of_accounts'].keys():
-            accountdiv = Account(accountname, data_of_partition[self.partition])
-            self.query_one("#accounts").mount(accountdiv)
+        self.list_of_tables = ['nodes']
+        self.cursor_offset = {}
 
-        # progress.remove_class('visible')
+        for accountname in data_of_partition[self.partition]['data_of_accounts'].keys():
+
+            self.list_of_tables.append(accountname)
+            accountdiv = Account(accountname, data_of_partition[self.partition])
+
+            with accountdiv.prevent(DataTable.RowHighlighted):
+                self.query_one("#accounts").mount(accountdiv)
+
+
+        # after refreshing, focus to the previously focused account datatable. 
+        # if doesnt exist, focus to the main one. 
+        # this is not for partition change
+        if not changed:
+            self.app.call_after_refresh(lambda: 
+                ((self.app.set_focus([i for i in self.screen.focus_chain if i.id==current_index][0], scroll_visible=False), \
+                    self.focused.move_cursor(row=current_cursor))\
+                    ) if len([i for i in self.screen.focus_chain if i.id==current_index]) > 0 else self.app.set_focus(self.screen.focus_chain[0],scroll_visible=False)
+            
+            
+            )
+        else:
+            self.app.call_after_refresh(lambda: self.app.set_focus(self.screen.focus_chain[0], scroll_visible=False))
+
+        if not changed:
+            self.app.call_after_refresh(lambda: self.on_data_table_row_selected(self.row_key))
 
         self.updated_time = time.time()
         self.update_subtitle()
@@ -485,7 +547,7 @@ class Slurm(App):
         self.partition_cycle.rotate(-1)
         self.partition = self.partition_cycle[0]
         self.title = self.partition
-        asyncio.create_task(self.action_refresh())
+        asyncio.create_task(self.action_refresh(changed=True))
 
     def action_cycle_partition_b(self):
         
@@ -494,16 +556,13 @@ class Slurm(App):
 
 
         self.title = self.partition
-        asyncio.create_task(self.action_refresh())
+        asyncio.create_task(self.action_refresh(changed=True))
 
     def action_scrollup(self):
-        data_table = self.query_one('Vertical#left')
-        data_table.scroll_up(animate=False)
+        self.vl.scroll_up(animate=False)
 
     def action_scrolldown(self):
-        data_table = self.query_one('Vertical#left')
-        data_table.scroll_down(animate=False)
-        print('hi')
+        self.vl.scroll_down(animate=False)
 
     def action_home(self):
         data_table = self.query_one('Vertical#left')
@@ -545,67 +604,75 @@ class Slurm(App):
     def on_data_table_row_selected(self, message):
 
 
-        if message.row_key.value:
-            typ = message.row_key.value[0]
+        if isinstance(message, str):
+            row_key = message
+        else:
+            row_key = message.row_key.value
+
+        if row_key and len(row_key) > 0:
+
+            self.row_key = row_key
+            typ = row_key[0]
 
             table = self.query_one('DataTable#details')
             table.clear()
             static = self.query_one('Vertical#right Static')
             static.update('')
 
+            try:
+                if typ == '0':
+                    nodename = row_key[1:]
 
-            if typ == '0':
-                nodename = message.row_key.value[1:]
-
-                node = self.data_of_partition[self.partition]['data_of_nodes'][nodename]
-                if 'mixed' in node['state'] or  'allocated' in node['state'] or  'idle' in node['state']:
-                    pass
-                else:
-                    static.update(Text("Node Issue:"+node['state_reason'], style=Style(bgcolor='black', color='white')))
+                    node = self.data_of_partition[self.partition]['data_of_nodes'][nodename]
+                    if 'mixed' in node['state'] or  'allocated' in node['state'] or  'idle' in node['state']:
+                        pass
+                    else:
+                        static.update(Text("Node Issue:"+node['state_reason'], style=Style(bgcolor='black', color='white')))
 
 
-                for job in node['jobs']:
-                    table.add_row(
-                        Text(f"{job['username']}", justify="right"),
-                        Text(f"{job['job_id']}", justify="right"),
-                        Text(f"{job['gpu_usage']}", justify="right"),
-                        Text(f"{job['cpu_usage']}", justify="right"),
-                        Text(f"{job['mem_usage']}", justify="right"),
-                        Text(f"{job['running_time']}", justify="right"),
-                        Text(f"{job['remaining_time']}", justify="right"),
+                    for job in node['jobs']:
+                        table.add_row(
+                            Text(f"{job['username']}", justify="right"),
+                            Text(f"{job['job_id']}", justify="right"),
+                            Text(f"{job['gpu_usage']}", justify="right"),
+                            Text(f"{job['cpu_usage']}", justify="right"),
+                            Text(f"{job['mem_usage']}", justify="right"),
+                            Text(f"{job['running_time']}", justify="right"),
+                            Text(f"{job['remaining_time']}", justify="right"),
 
-                    )
-                
+                        )
 
-            if typ == '1':
-                username, account = message.row_key.value[1:].split("|")[:2]
+                if typ == '1':
+                    username, account = row_key[1:].split("|")[:2]
 
-                for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['jobs']:
-                    table.add_row(
-                        Text(f"{job['username']}", justify="right"),
-                        Text(f"{job['job_id']}", justify="right"),
-                        Text(f"{job['gpu_usage']}", justify="right"),
-                        Text(f"{job['cpu_usage']}", justify="right"),
-                        Text(f"{job['mem_usage']}", justify="right"),
-                        Text(f"{job['running_time']}", justify="right"),
-                        Text(f"{job['remaining_time']}", justify="right"),
+                    for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['jobs']:
+                        table.add_row(
+                            Text(f"{job['username']}", justify="right"),
+                            Text(f"{job['job_id']}", justify="right"),
+                            Text(f"{job['gpu_usage']}", justify="right"),
+                            Text(f"{job['cpu_usage']}", justify="right"),
+                            Text(f"{job['mem_usage']}", justify="right"),
+                            Text(f"{job['running_time']}", justify="right"),
+                            Text(f"{job['remaining_time']}", justify="right"),
 
-                    )
+                        )
 
-            if typ == '2':
-                username, nodename, account  = message.row_key.value[1:].split("|")[:3]
+                if typ == '2':
+                    username, nodename, account  = row_key[1:].split("|")[:3]
 
-                for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['data_of_nodes'][nodename]['jobs']:
-                    table.add_row(
-                        Text(f"{job['username']}", justify="right"),
-                        Text(f"{job['job_id']}", justify="right"),
-                        Text(f"{job['gpu_usage']}", justify="right"),
-                        Text(f"{job['cpu_usage']}", justify="right"),
-                        Text(f"{job['mem_usage']}", justify="right"),
-                        Text(f"{job['running_time']}", justify="right"),
-                        Text(f"{job['remaining_time']}", justify="right"),
+                    for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['data_of_nodes'][nodename]['jobs']:
+                        table.add_row(
+                            Text(f"{job['username']}", justify="right"),
+                            Text(f"{job['job_id']}", justify="right"),
+                            Text(f"{job['gpu_usage']}", justify="right"),
+                            Text(f"{job['cpu_usage']}", justify="right"),
+                            Text(f"{job['mem_usage']}", justify="right"),
+                            Text(f"{job['running_time']}", justify="right"),
+                            Text(f"{job['remaining_time']}", justify="right"),
 
-                    )
+                        )
+            except:
+                self.row_key = None
 
     def action_getnames(self, refresh=True):
 
@@ -619,6 +686,11 @@ class Slurm(App):
         except:
             self.notify('Cannot load new names!\nsome issue with getting the name from CS mail server!')
 
+            return
+
+        if refresh:
+            self.notify(f'Got {len(got_names)} new names:\n{",".join(list(got_names.keys()))}')
+
         self.names = {**self.names, **got_names}
 
         if refresh:
@@ -630,6 +702,78 @@ class Slurm(App):
         filename = 'screenshot_{date:%Y-%m-%d_%H-%M-%S}.svg'.format( date=datetime.datetime.now() )
         self.action_screenshot(filename=filename, path=home)
         self.notify(f'Screenshot added to your home directory.\n{os.path.join(home,filename)}')
+
+    # def on_data_table_row_highlighted(self, message):
+
+    #     print(message.cursor_row)
+    #     print(message.data_table )
+
+    def on_key(self, event):
+
+        if isinstance(self.focused, MyDataTable):
+
+            try:
+
+                # get the canonical y-location of the cursor. 
+                # we need to know the y-loc of the first row of each datatable
+                if len(self.cursor_offset) == 0:
+                    offset = 1 # do not count the title bar
+                    for datatable in self.screen.focus_chain:
+
+                        self.cursor_offset[datatable.id] = offset
+                        offset += datatable.row_count + 3
+
+                if event.key == 'down':
+                    event.prevent_default()
+                    if self.focused.cursor_row == self.focused.row_count-1:
+
+                        self.screen.focus_next()
+                        self.focused.move_cursor(row=0)
+                    else:
+                        self.focused.move_cursor(row=self.focused.cursor_row+1)
+
+                elif event.key == 'up':
+                    event.prevent_default()
+                    if self.focused.cursor_row == 0:
+                        # this will lead to scrolling all the way to the top of the table
+                        # self.screen.focus_previous(scroll_visible=False) 
+                        current_index = self.screen.focus_chain.index(self.focused)
+
+                        prev_table = self.screen.focus_chain[(current_index-1+len(self.screen.focus_chain))%len(self.screen.focus_chain)]
+                        self.screen.set_focus(prev_table, scroll_visible=False)
+                        self.focused.move_cursor(row=self.focused.row_count-1)
+                    else:
+                        self.focused.move_cursor(row=self.focused.cursor_row-1)
+                        
+                elif event.key == 'tab':
+                    event.prevent_default()
+                    self.screen.focus_next()
+                    self.focused.move_cursor(row=0)
+                elif event.key == 'shift+tab':
+                    event.prevent_default()
+                    self.screen.focus_previous()
+                    self.focused.move_cursor(row=0)
+
+                else:
+                    return
+
+
+                # we need to scroll so that the cursor is visible
+
+                canonical_location_of_the_cursor = self.cursor_offset[self.focused.id] + self.focused.cursor_row
+                where_should_cursor_be_relative_to_window = canonical_location_of_the_cursor - self.vl.scroll_y
+
+                if where_should_cursor_be_relative_to_window < 0:
+                    self.vl.scroll_to(y=int(self.vl.scroll_y + where_should_cursor_be_relative_to_window),speed=150)
+
+                elif math.ceil(where_should_cursor_be_relative_to_window) >= self.vl.size[1]:
+                    self.vl.scroll_to(y=math.ceil(self.vl.scroll_y + where_should_cursor_be_relative_to_window - self.vl.size[1] + 1),speed=150)
+                    
+
+                
+                
+            except Exception as e:
+                self.notify('Some error happened but I put try-except, so its okay. \n'+str(e))
 
 if __name__ == "__main__":
     app = Slurm()

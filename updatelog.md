@@ -16,3 +16,4 @@ Initial Program
 
 ### v1.0.2
 - action palette is now better
+- keyboard support
