@@ -8,12 +8,12 @@ This is a CLI-replica of `clusterstat/realtime`
 </picture>
 
 
-## Use
+## How to Use
 
 This app needs supports both keyboard and mouse.  
 Type `?` in the app to see the help menu. 
 
-### 1. Quick method
+### A. Quick method (Recommended)
 
 I have included binary in my personal folder. 
 Add the following line at the end of your `~/.bashrc`
@@ -24,15 +24,20 @@ sv() {
 }
 ```
 
-Restart the terminal, and type `sv`
+Restart the terminal, and type `sv`.
+
+We recommend this method as you get to use the most recently updated tool, using all the new cool functionality,
+without needing to download anything. 
+
+Note that we do not have "Update available" notification functionality. 
 
 
-### 2. Download Binary
+### B. Download Binary
 
 You can also download binary from [Releases](https://github.com/a6o/Slurm-Viewer/releases).
 Note that uploaded binary might not be the same as the most recent updates. 
 
-### 3. Run using Python.
+### C. Run using Python.
 
 1. Clone this repository.
 2. Install Textual, and run!
@@ -41,7 +46,7 @@ pip install textual
 python ./app.py
 ```
 
-### 4. Make binary
+### D. Build Binary
 
 1. First install pyinstaller
 ```bash
