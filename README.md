@@ -76,7 +76,7 @@ squeue -o '%100T %100b %100m %100a %100u %100C %100L %100i %100M %100N'
 
 Everything else from there is fancy json structuring + [Textual](https://github.com/Textualize/textual)
 
-### How do you get the names of the people using NetID?
+### 3. How do you get the names of the people using NetID?
 
 As in [CS guide](https://csguide.cs.princeton.edu/email/setup/ldap), you can use `ldapsearch` to get information of a person using NetID. Here, I use 
 
@@ -86,12 +86,15 @@ ldapsearch -x -h ldap.cs.princeton.edu uid=<NETID>
 
 Note that this only works in Ionic, but not in Neuronic. 
 
-
-## License
-I claim no rights to this code. Do whatever you want with it. 
-
 ## Future plans. 
 
 1. Showing all the user's jobs. Good to see if it is in waitlist or not. Maybe show other peoples queue as well to see where in the priority queue you are in...?
 
 2. Click indivisual jobs to see more details. Basically show everything that squeue can show. 
+
+3. Right now, I am getting all the jobs. However, only visualizing jobs of specific partition, and reload jobs when the user changes to different partition. Should I limit `squeue` to only that specific partition for efficiency? Right now, `squeue` is not that slow, but current code is still sub-optimal.
+
+4. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website... 
+
+## License
+I claim no rights to this code. Do whatever you want with it. 
