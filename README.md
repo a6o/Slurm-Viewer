@@ -94,7 +94,9 @@ Note that this only works in Ionic, but not in Neuronic.
 
 3. Right now, I am getting all the jobs. However, only visualizing jobs of specific partition, and reload jobs when the user changes to different partition. Should I limit `squeue` to only that specific partition for efficiency? Right now, `squeue` is not that slow, but current code is still sub-optimal.
 
-4. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website... 
+4. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website...
+
+5. Tables aren't sorted in particular way. Make node table be sorted by node id, job table sorted by id or running time. 
 
 ## License
 I claim no rights to this code. Do whatever you want with it. 
