@@ -1,6 +1,8 @@
-Slurm Viewer
-by Jihoon
-Ver. 1.0.2
+&nbsp;
+
+Slurm Viewer  
+by Jihoon  
+Ver. 1.0.3  
 
 Navigate:  
 The tool works with both mouse and keyboard

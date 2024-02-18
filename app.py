@@ -29,8 +29,7 @@ from textual.message import Message
 from textual import events
 
 def setnode():
-    cmd = f"sinfo -o '%100R %100n %100G %100C %100e %100m %100T %100E' -h --sort '+Rn'"
-    # partition name, nodename, gres, cpus, free memories, mems , state, unavailable reason
+    cmd = f"sinfo -O 'partitionname:.100,nodelist:.100,gres:.100,gresused:.100,cpusstate:.100,freemem:.100,memory:.100,allocmem:.100,statelong:.100,reason:.100' -h -N --sort '+Rn'"
     _, outputs = subprocess.getstatusoutput(cmd) # note that the last one can contain multipe whitespaces
     
     nodelist = defaultdict(list)
@@ -38,7 +37,7 @@ def setnode():
     for output in outputs.split("\n"):
         output = list(map(lambda x: x.strip(), wrap(output, 101,replace_whitespace=False, drop_whitespace=False)))
 
-        partition_name, nodename, gres, cpus, freemem, mem, state, error = output
+        partition_name, nodename, gres, gres_used, cpus, freemem, mem, mem_usage, state, error = output
 
 
         
@@ -53,18 +52,21 @@ def setnode():
                 # divide 1024 to convert MB to GB
             total_mem = int(mem)// 1024 if mem.isnumeric() else 0
                 # size of memory in GB.
-
+            mem_usage = int(mem_usage)//1024 if mem_usage.isnumeric() else 0
         if 'null' in gres:
             total_gpu = 0
+            gpu_usage = 0
             gpu_type = 'NONE'
         else:
             # gres = 'gpu:gtx_1080:4(S:0-1)' is 4 GPUs in total per node. 
             total_gpu = int(gres.split('(')[0].split(':')[-1])
             gpu_type = gres.split(':')[1].upper().replace("_", " ")
+            gpu_usage = int(gres_used.split("(")[0].split(":")[-1])
+
         cpu_total = int(cpus.split('/')[-1])
 
         data = {'nodename': nodename, 'cpu_total': cpu_total, 'cpu_free': avail_cpu, 
-        'mem_total': total_mem, 'mem_free': free_mem, 'gpu_total': total_gpu, 'gpu_type': gpu_type, 'state':state, 'state_reason': error}
+        'mem_total': total_mem, 'mem_free': free_mem, 'mem_usage': mem_usage, 'gpu_total': total_gpu, 'gpu_usage':gpu_usage, 'gpu_type': gpu_type, 'state':state, 'state_reason': error}
         nodelist[partition_name].append(data)
         
         all_set[nodename] = data
@@ -75,10 +77,10 @@ def setnode():
 
     return nodelist
 
-def getjobs():
+def getjobs(partition='all'):
     jobs = []
 
-    cmd = f"squeue -o '%100T %100b %100m %100a %100u %100C %100L %100i %100M %100N'"
+    cmd = f"squeue -o '%100T %100b %100m %100a %100u %100C %100L %100i %100M %100N' " + (f'-p {partition}' if partition != 'all' else '')
     _, output = subprocess.getstatusoutput(cmd)
 
     for entry in output.split('\n')[1:]:
@@ -120,20 +122,20 @@ def getjobs():
         })
     return jobs
 
-def get_data(node_list):
+def get_data(node_list, partition='all'):
     
-    jobs = getjobs()
+    jobs = getjobs(partition)
 
     data_of_partition = defaultdict(lambda : {'data_of_nodes':dict(), 'data_of_accounts': defaultdict(lambda:
             defaultdict(lambda: {'data_of_nodes': defaultdict(lambda: {'jobs':[],'cpu_usage':0, 'gpu_usage':0, 'mem_usage':0}), 'cpu_usage':0, 'gpu_usage':0, 'mem_usage':0, 'jobs': []}
             )
         )}
-    
     )
+
     data_of_all_nodes = dict()
 
     for node in node_list['all']:
-        data_of_all_nodes[node['nodename']] = {**node, **{'mem_usage': 0, 'gpu_usage': 0, 'jobs': []}}
+        data_of_all_nodes[node['nodename']] = {**node, **{'jobs': []}}
 
     for partition in node_list.keys():
         data_of_partition[partition]['data_of_nodes'] = {node['nodename']: data_of_all_nodes[node['nodename']] for node in node_list[partition]}
@@ -144,8 +146,7 @@ def get_data(node_list):
         nodename = job['nodename']
 
         data_of_all_nodes[job['nodename']]['jobs'].append(job)
-        data_of_all_nodes[job['nodename']]['mem_usage'] += job['mem_usage']
-        data_of_all_nodes[job['nodename']]['gpu_usage'] += job['gpu_usage']
+
 
 
     for partition in data_of_partition.keys():
@@ -197,24 +198,6 @@ def get_peoplename(ids):
     return out
 
 
-class IndeterminateProgress(Static):
-    def __init__(self):
-        super().__init__("")
-
-
-        # self.cycle =  [''.join([(('■' if i == j else '□') +  ("\n" if j%3==2 else '')) for j in range(9)]) for i in [0,1,2,5,8,7,6,3]]  
-        # self.cycle = cycle(self.cycle)
-        self.cycle = cycle('🌘🌗🌖🌕🌔🌓🌒🌑')
-        self.renderable = ''
-    def on_mount(self) -> None:
-        pass
-        self.update_render = self.set_interval(
-            1/10, self.update_progress_bar
-        )  
-    def update_progress_bar(self) -> None:
-        self.renderable = next(self.cycle)
-        self.update(self.renderable)
-
 class MyDataTable(DataTable):
 
     def __init__(self, **kargs):
@@ -225,8 +208,6 @@ class MyDataTable(DataTable):
 
     def on_blur(self):
         self.show_cursor = False
-        
-        
 
 
 class Account(Static):
@@ -248,18 +229,13 @@ class Account(Static):
         account_table = self.query_one('DataTable')
         account_table.add_columns("User", "CPU", "GPU", "Memory")
         account_table.cursor_type = 'row'
-        # account_table.zebra_stripes = True
-        # account_table.show_cursor=False
-
-        # account_table.styles.width = node_table.size.width
-        # print(node_table.size.width)
 
 
-        for username in self.data_of_partition['data_of_accounts'][self.account].keys():
+        for username in sorted(self.data_of_partition['data_of_accounts'][self.account].keys(), key= lambda x: 'aaaaa' if x==self.app.me else x):
 
-            account_table.add_row(username if username not in self.app.names else f'{username} ({self.app.names[username]})', key=f"1{username}|{self.account}")
+            account_table.add_row(("❤" if username=='jc5933' else ('🖤' if username==self.app.me else ' ')) + (username if username not in self.app.names else f'{username} ({self.app.names[username]})'), key=f"1{username}|{self.account}")
             cpu_usage_sum, gpu_usage_sum, mem_usage_sum = 0, 0, 0
-            for nodename in self.data_of_partition['data_of_accounts'][self.account][username]['data_of_nodes'].keys():
+            for nodename in sorted(self.data_of_partition['data_of_accounts'][self.account][username]['data_of_nodes'].keys()):
                 data_of_node = self.data_of_partition['data_of_accounts'][self.account][username]['data_of_nodes'][nodename]
                 account_table.add_row('  --'+nodename, 
                 Text(f"{data_of_node['cpu_usage']} ({int(data_of_node['cpu_usage']*100/(self.data_of_partition['cpu_total']+1e-5)):3d}%)", justify='right'), 
@@ -277,14 +253,6 @@ class Account(Static):
 
             account_table.add_row()
 
-    
-    # def on_my_data_table_focus(self, event):
-    #     self.app.notify('hello')
-
-    # @on(DataTable.Blur)
-    # def on_my_data_table_blur(self, event):
-    #     self.app.notify('bellow')
-
 
 class InfoScreen(ModalScreen):
     """Screen with a dialog to quit."""
@@ -301,6 +269,7 @@ class InfoScreen(ModalScreen):
 
     def on_click(self, event):
         self.app.pop_screen()
+
 
 class Search(Provider):
     """A command provider to open a Python file in the current working directory."""
@@ -324,35 +293,32 @@ class Search(Provider):
         app = self.app
         assert isinstance(app, Slurm)
 
+        items = []
+
         for partition in list(self.partitions):
+
             command = f"Change to partition {str(partition)}"
-            score = matcher.match(command)  
+            fnc = partial(app.change_partition, partition)
+            hlp = "Open this partition"
+            
+            items.append([command, fnc, hlp])
+                
+        items.append(['Quit the application', app.action_quit, "Quit the application as soon as possible"])
+        items.append(['Toggle light/dark mode', app.action_toggle_dark, "Toggle the application between light and dark mode"])
+        items.append(['Refresh', app.action_refresh, "Refresh the list."])
+        items.append(['Screenshot', app.action_screens, "Take a Screenshot."])
+        items.append(['Fetch names', app.action_getnames, "Fetch missing real names."])
+
+        for command, fnc, hlp in items:
+            score = matcher.match(command)
 
             if score > 0:
                 yield Hit(
                     score,
-                    matcher.highlight(command), 
-
-                    partial(app.change_partition, partition),
-                    help="Open this partition",
+                    matcher.highlight(command),
+                    fnc,
+                    help=hlp
                 )
-                
-        score = matcher.match('Quit the application')  
-        if score > 0:
-            yield Hit(
-                score,
-                matcher.highlight('Quit the application'), 
-                app.action_quit,
-                help="Quit the application as soon as possible",
-            )
-        score = matcher.match('Toggle light/dark mode')  
-        if score > 0:
-            yield Hit(
-                score,
-                matcher.highlight('Toggle light/dark mode'), 
-                app.action_toggle_dark,
-                help="Toggle the application between light and dark mode",
-            )
 
 
 class Slurm(App):
@@ -360,7 +326,7 @@ class Slurm(App):
 
     COMMANDS = {Search}
     CSS_PATH = "style.tcss"
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
+    BINDINGS = [Binding("d", "toggle_dark", "Toggle dark mode", show=False),
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
                 ("p", "cycle_partition", "Change Partition"),
@@ -378,11 +344,8 @@ class Slurm(App):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # yield IndeterminateProgress()
         yield Header()
         yield Footer()
-        # yield Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), DataTable(id='details'), id='maincontainer')
-        # yield Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left')
         yield Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), 
                         Vertical(Static(), DataTable(show_cursor=False, id='details'), id='right'))
 
@@ -392,6 +355,7 @@ class Slurm(App):
 
     def on_mount(self) -> None:
 
+        self.me = subprocess.getstatusoutput('echo $LOGNAME')[1]
         data_table = self.query_one('DataTable#nodes')
         data_table.add_columns("Node", "Available CPU", "Available GPU", "Unrequested Memory", 'Free Memory')
         data_table.cursor_type = 'row'
@@ -437,28 +401,16 @@ class Slurm(App):
         self.update_render = self.set_interval(
             1, self.update_subtitle
         )  
-        
-
-
 
     async def action_refresh(self, getname=False, changed=False) -> None:
         """An action to toggle dark mode."""
-
-        
-
-
 
         if self.screen.focus_chain and self.focused:
             current_index = self.focused.id
             current_cursor = self.focused.cursor_row
         else:
             current_index = 'nodes'
-            current_cursor = 0
-
-        print(current_cursor)
-
-
-        
+            current_cursor = 0 
 
         self.screen.set_focus(None, scroll_visible=False)
 
@@ -471,7 +423,7 @@ class Slurm(App):
 
         nodelist = setnode()
 
-        data_of_partition = get_data(nodelist)
+        data_of_partition = get_data(nodelist, self.partition)
         self.data_of_partition = data_of_partition
         
         if getname:
@@ -481,20 +433,22 @@ class Slurm(App):
             self.partition_cycle = deque(list(data_of_partition.keys())[1:] + ['all'])
 
         
-        for nodename, node in data_of_partition[self.partition]['data_of_nodes'].items():
+        for nodename, node in sorted(data_of_partition[self.partition]['data_of_nodes'].items(), key=lambda x: x[0]):
             
 
             if 'mixed' in node['state'] or  'allocated' in node['state'] or  'idle' in node['state']:
                 nametext = Text(nodename + f" ({node['gpu_total']} × {node['gpu_type'].upper()})")
+                drain= False
             else:
                 nametext = Text(f"{nodename} ({node['gpu_total']} × {node['gpu_type'].upper()}) ({node['state']})", 
-                style=Style(strike=True))
+                style=Style(strike=True,color='red'))
+                drain=True
             table.add_row(
             nametext,
-            Text(f"{node['cpu_free']} / {node['cpu_total']}", justify="right"),
-            Text(f"{node['gpu_total']-node['gpu_usage']} / {node['gpu_total']}", justify="right"),
-            Text(f"{node['mem_total'] - node['mem_usage']}G", justify="right"),
-            Text(f"{node['mem_free']}G", justify="right"), key=f"0{nodename}"
+            Text(f"{node['cpu_free']} / {node['cpu_total']}", justify="right", style=Style(color='red') if drain else None),
+            Text(f"{node['gpu_total']-node['gpu_usage']} / {node['gpu_total']}", justify="right", style=Style(color='red') if drain else None),
+            Text(f"{node['mem_total'] - node['mem_usage']}G", justify="right", style=Style(color='red') if drain else None),
+            Text(f"{node['mem_free']}G", justify="right", style=Style(color='red') if drain else None), key=f"0{nodename}"
             )
             # await sleep(0.001) # fake refresh UX :) you caught me
 
@@ -502,7 +456,7 @@ class Slurm(App):
         self.list_of_tables = ['nodes']
         self.cursor_offset = {}
 
-        for accountname in data_of_partition[self.partition]['data_of_accounts'].keys():
+        for accountname in sorted(data_of_partition[self.partition]['data_of_accounts'].keys()):
 
             self.list_of_tables.append(accountname)
             accountdiv = Account(accountname, data_of_partition[self.partition])
@@ -542,8 +496,6 @@ class Slurm(App):
         self.sub_title = f'Last refreshed {whenago(time.time()-self.updated_time)} ago'
 
     def action_cycle_partition(self):
-
-        # self.partition = next(self.partition_cycle
         self.partition_cycle.rotate(-1)
         self.partition = self.partition_cycle[0]
         self.title = self.partition
@@ -630,7 +582,7 @@ class Slurm(App):
                         static.update(Text("Node Issue:"+node['state_reason'], style=Style(bgcolor='black', color='white')))
 
 
-                    for job in node['jobs']:
+                    for job in sorted(node['jobs'], key=lambda x: x['job_id']):
                         table.add_row(
                             Text(f"{job['username']}", justify="right"),
                             Text(f"{job['job_id']}", justify="right"),
@@ -645,7 +597,7 @@ class Slurm(App):
                 if typ == '1':
                     username, account = row_key[1:].split("|")[:2]
 
-                    for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['jobs']:
+                    for job in sorted(self.data_of_partition[self.partition]['data_of_accounts'][account][username]['jobs'], key=lambda x: x['job_id']):
                         table.add_row(
                             Text(f"{job['username']}", justify="right"),
                             Text(f"{job['job_id']}", justify="right"),
@@ -660,7 +612,7 @@ class Slurm(App):
                 if typ == '2':
                     username, nodename, account  = row_key[1:].split("|")[:3]
 
-                    for job in self.data_of_partition[self.partition]['data_of_accounts'][account][username]['data_of_nodes'][nodename]['jobs']:
+                    for job in sorted(self.data_of_partition[self.partition]['data_of_accounts'][account][username]['data_of_nodes'][nodename]['jobs'], key=lambda x: x['job_id']):
                         table.add_row(
                             Text(f"{job['username']}", justify="right"),
                             Text(f"{job['job_id']}", justify="right"),
@@ -702,11 +654,6 @@ class Slurm(App):
         filename = 'screenshot_{date:%Y-%m-%d_%H-%M-%S}.svg'.format( date=datetime.datetime.now() )
         self.action_screenshot(filename=filename, path=home)
         self.notify(f'Screenshot added to your home directory.\n{os.path.join(home,filename)}')
-
-    # def on_data_table_row_highlighted(self, message):
-
-    #     print(message.cursor_row)
-    #     print(message.data_table )
 
     def on_key(self, event):
 

@@ -3,3 +3,4 @@ build
 old
 __pycache__
 *.spec
+.ipynb_checkpoints

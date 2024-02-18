@@ -3,10 +3,10 @@ InfoScreen {
 }
 
 InfoScreen MarkdownViewer {
-    padding: 2 2;
     max-width: 100;
     width: 50%;
     height: auto;
+    max-height: 90%;
     border: thick $background 80%;
     background: $surface;
 }

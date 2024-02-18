@@ -31,7 +31,6 @@ without needing to download anything.
 
 Note that we do not have "Update available" notification functionality. 
 
-
 ### B. Download Binary
 
 You can also download binary from [Releases](https://github.com/a6o/Slurm-Viewer/releases).
@@ -45,6 +44,9 @@ Note that uploaded binary might not be the same as the most recent updates.
 pip install textual
 python ./app.py
 ```
+
+> [!WARNING]  
+> Do not run python code in Jihoon's directory. Jihoon might be in mid-way of adding a new feature, so the program could be bugged if you are trying to run from his python code. 
 
 ### D. Build Binary
 
@@ -97,11 +99,7 @@ Note that this only works in Ionic, but not in Neuronic.
 
 2. Click indivisual jobs to see more details. Basically show everything that squeue can show. 
 
-3. Right now, I am getting all the jobs. However, only visualizing jobs of specific partition, and reload jobs when the user changes to different partition. Should I limit `squeue` to only that specific partition for efficiency? Right now, `squeue` is not that slow, but current code is still sub-optimal.
-
-4. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website...
-
-5. Tables aren't sorted in particular way. Make node table be sorted by node id, job table sorted by id or running time. 
+3. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website...
 
 ## License
 I claim no rights to this code. Do whatever you want with it. 
