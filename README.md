@@ -97,7 +97,7 @@ Note that this only works in Ionic, but not in Neuronic.
 
 1. Showing all the user's jobs. Good to see if it is in waitlist or not. Maybe show other peoples queue as well to see where in the priority queue you are in...?
 
-2. Click indivisual jobs to see more details. Basically show everything that squeue can show. 
+2. Click individual jobs to see more details. Basically show everything that squeue can show. 
 
 3. I don't have auto-reload on to make sure the slurm is not stressed by 100 students calling squeue every 1 second. But for Ionic, I can have the user get squeue information from my json that I save for my website...
 

@@ -24,6 +24,6 @@ Keys:
 
 
 Settings are saved in ~/.jihoon. We currently store:  
-- Last visited partition, so that when startup, it will show the same partition.
-- Dark mode or not
+- Last visited partition, so that when startup, the app will show the same partition.
+- Dark/Light mode settings
 - NetID to real name. (You might want to copy this from Ionic to Neuronic)

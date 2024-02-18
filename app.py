@@ -265,6 +265,9 @@ class InfoScreen(ModalScreen):
         yield MarkdownViewer(self.label, show_table_of_contents=False)
 
     def on_key(self, event) -> None:
+
+        if event.key == 'up' or event.key == 'down':
+            return
         self.app.pop_screen()
 
     def on_click(self, event):
