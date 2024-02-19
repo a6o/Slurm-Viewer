@@ -254,6 +254,27 @@ class Account(Static):
             account_table.add_row()
 
 
+ERROR_TEXT = """
+An error has occurred. To continue:
+
+Press Enter to return to Windows, or
+
+Press CTRL+ALT+DEL to restart your computer. If you do this,
+you will lose any unsaved information in all open applications.
+
+Error: 0E : 016F : BFF9B3D4
+"""
+
+
+class BSOD(Screen):
+    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+
+    def compose(self) -> ComposeResult:
+        yield Static(" Windows ", id="title")
+        yield Static(ERROR_TEXT)
+        yield Static("Press any key to continue [blink]_[/]", id="any-key")
+
+
 class InfoScreen(ModalScreen):
     """Screen with a dialog to quit."""
 
@@ -329,6 +350,7 @@ class Slurm(App):
 
     COMMANDS = {Search}
     CSS_PATH = "style.tcss"
+    SCREENS = {"bsod": BSOD()}
     BINDINGS = [Binding("d", "toggle_dark", "Toggle dark mode", show=False),
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
@@ -343,6 +365,7 @@ class Slurm(App):
                 Binding('n', 'getnames', 'Show Names', show=False),
                 ("q", "quit", "Quit"),
                 ("?", 'help', 'Help'),
+                ("b", "push_screen('bsod')", "BSOD")
                ]
 
     def compose(self) -> ComposeResult:

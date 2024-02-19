@@ -93,6 +93,13 @@ ldapsearch -x -h ldap.cs.princeton.edu uid=<NETID>
 
 Note that this only works in Ionic, but not in Neuronic. 
 
+However, netid-to-name file is saved as json, which you can move to neuronic using following line.
+
+```
+# Run this inside cycles server. 
+scp ~/.jihoon/names.json neuronic:~/.jihoon/names.json
+```
+
 ## Future plans. 
 
 1. Showing all the user's jobs. Good to see if it is in waitlist or not. Maybe show other peoples queue as well to see where in the priority queue you are in...?
