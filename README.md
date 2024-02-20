@@ -85,20 +85,7 @@ Everything else from there is fancy json structuring + [Textual](https://github.
 
 ### 3. How do you get the names of the people using NetID?
 
-As in [CS guide](https://csguide.cs.princeton.edu/email/setup/ldap), you can use `ldapsearch` to get information of a person using NetID. Here, I use 
-
-```
-ldapsearch -x -h ldap.cs.princeton.edu uid=<NETID>
-```
-
-Note that this only works in Ionic, but not in Neuronic. 
-
-However, netid-to-name file is saved as json, which you can move to neuronic using following line.
-
-```
-# Run this inside cycles server. 
-scp ~/.jihoon/names.json neuronic:~/.jihoon/names.json
-```
+We use `finger <NETID>` to get names. This works for both neuronic and ionic
 
 ## Future plans. 
 

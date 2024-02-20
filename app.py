@@ -45,6 +45,7 @@ def setnode():
             avail_cpu = 0
             free_mem = 0
             total_mem = 0
+            mem_usage = 0
         else:
             avail_cpu = int(cpus.split('/')[1])
             free_mem = int(freemem)// 1024 if freemem.isnumeric() else 0   
@@ -184,19 +185,27 @@ def get_peoplename(ids):
     out = {}
 
     for id in ids:
-        cmd = "ldapsearch -x -h ldap.cs.princeton.edu uid="+id
-        _, nameoutput = subprocess.getstatusoutput(cmd) 
-        for l in nameoutput.split("\n"):
-            if "displayName:" in l:
+        # cmd = "ldapsearch -x -h ldap.cs.princeton.edu uid="+id
+        # _, nameoutput = subprocess.getstatusoutput(cmd) 
+        # for l in nameoutput.split("\n"):
+        #     if "displayName:" in l:
                 
-                if "::" in l:
-                    thisname = base64.b64decode(l.split(":")[-1].strip()).decode()
-                else:
-                    thisname = l.split(":")[-1]
+        #         if "::" in l:
+        #             thisname = base64.b64decode(l.split(":")[-1].strip()).decode()
+        #         else:
+        #             thisname = l.split(":")[-1]
+        #         out[id] = thisname.strip()
+
+        cmd = f"finger {id}"
+        _, nameoutput = subprocess.getstatusoutput(cmd)
+        for l in nameoutput.split("\n"):
+            if "Name:" in l:
+                thisname = l.split("Name:")[-1]
                 out[id] = thisname.strip()
 
+    print(ids)
+    print(out)
     return out
-
 
 class MyDataTable(DataTable):
 
@@ -208,7 +217,6 @@ class MyDataTable(DataTable):
 
     def on_blur(self):
         self.show_cursor = False
-
 
 class Account(Static):
 
@@ -253,26 +261,6 @@ class Account(Static):
 
             account_table.add_row()
 
-
-ERROR_TEXT = """
-An error has occurred. To continue:
-
-Press Enter to return to Windows, or
-
-Press CTRL+ALT+DEL to restart your computer. If you do this,
-you will lose any unsaved information in all open applications.
-
-Error: 0E : 016F : BFF9B3D4
-"""
-
-
-class BSOD(Screen):
-    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
-
-    def compose(self) -> ComposeResult:
-        yield Static(" Windows ", id="title")
-        yield Static(ERROR_TEXT)
-        yield Static("Press any key to continue [blink]_[/]", id="any-key")
 
 
 class InfoScreen(ModalScreen):
@@ -350,7 +338,6 @@ class Slurm(App):
 
     COMMANDS = {Search}
     CSS_PATH = "style.tcss"
-    SCREENS = {"bsod": BSOD()}
     BINDINGS = [Binding("d", "toggle_dark", "Toggle dark mode", show=False),
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
@@ -365,7 +352,6 @@ class Slurm(App):
                 Binding('n', 'getnames', 'Show Names', show=False),
                 ("q", "quit", "Quit"),
                 ("?", 'help', 'Help'),
-                ("b", "push_screen('bsod')", "BSOD")
                ]
 
     def compose(self) -> ComposeResult:

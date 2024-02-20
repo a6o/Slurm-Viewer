@@ -28,3 +28,4 @@ Initial Program
 - Now only fetch jobs from current partition. Not sure how much it saves, but it does save a bit.
 - Memory usage and GPU usage of a node is coming from sinfo, not by adding up all the jobs. 
 - Red if draining.
+- fetching name works in both cluster.
