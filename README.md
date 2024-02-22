@@ -89,7 +89,7 @@ We use `finger <NETID>` to get names. This works for both neuronic and ionic
 
 ## Future plans. 
 
-1. Showing all the user's jobs. Good to see if it is in waitlist or not. Maybe show other peoples queue as well to see where in the priority queue you are in...?
+1. We now have a screen that shows squeue of the user. Can we show squeue of everyone in that partition so the use can compare its priority? Also, better design for squeue.
 
 2. Click individual jobs to see more details. Basically show everything that squeue can show. 
 

@@ -203,8 +203,6 @@ def get_peoplename(ids):
                 thisname = l.split("Name:")[-1]
                 out[id] = thisname.strip()
 
-    print(ids)
-    print(out)
     return out
 
 class MyDataTable(DataTable):
@@ -261,13 +259,20 @@ class Account(Static):
 
             account_table.add_row()
 
-
-
 class InfoScreen(ModalScreen):
     """Screen with a dialog to quit."""
 
-    def __init__(self, label, **kwargs):
-        self.label = label
+    def __init__(self, **kwargs):
+        
+
+        if os.path.exists("./info.txt"): # if binary
+            info = open("./info.txt").read()
+        else:
+            __location__ = os.path.realpath( # if running from python
+        os.path.join(os.getcwd(), os.path.dirname(__file__)))
+            info = open(os.path.join(__location__, 'info.txt')).read()
+
+        self.label = info
         super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
@@ -282,7 +287,6 @@ class InfoScreen(ModalScreen):
     def on_click(self, event):
         self.app.pop_screen()
 
-
 class Search(Provider):
     """A command provider to open a Python file in the current working directory."""
 
@@ -291,7 +295,12 @@ class Search(Provider):
 
 
         """Called once when the command palette is opened, prior to searching."""
-        self.partitions = self.app.partition_cycle
+        
+        for stacks in self.app._screen_stacks.values():
+            for screen in stacks:
+                if isinstance(screen, Usage):
+                    self.partitions = screen.partition_cycle
+                    self.usage_screen = screen
 
 
     async def search(self, query: str) -> Hits:  
@@ -303,23 +312,23 @@ class Search(Provider):
 
 
         app = self.app
-        assert isinstance(app, Slurm)
+        assert isinstance(app, Main)
 
         items = []
 
         for partition in list(self.partitions):
 
             command = f"Change to partition {str(partition)}"
-            fnc = partial(app.change_partition, partition)
+            fnc = partial(self.usage_screen.change_partition, partition)
             hlp = "Open this partition"
             
             items.append([command, fnc, hlp])
                 
         items.append(['Quit the application', app.action_quit, "Quit the application as soon as possible"])
         items.append(['Toggle light/dark mode', app.action_toggle_dark, "Toggle the application between light and dark mode"])
-        items.append(['Refresh', app.action_refresh, "Refresh the list."])
+        items.append(['Refresh', self.usage_screen.action_refresh, "Refresh the list."])
         items.append(['Screenshot', app.action_screens, "Take a Screenshot."])
-        items.append(['Fetch names', app.action_getnames, "Fetch missing real names."])
+        items.append(['Fetch names', self.usage_screen.action_getnames, "Fetch missing real names."])
 
         for command, fnc, hlp in items:
             score = matcher.match(command)
@@ -332,13 +341,36 @@ class Search(Provider):
                     help=hlp
                 )
 
+class Queue(Screen):
+    TITLE = 'Queue'
+    BINDINGS = [('w', 'app.cycle_mode', 'Show Usage')]
 
-class Slurm(App):
-    """A Textual app to manage stopwatches."""
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static('Queue', id='squeue')
+        yield Footer()
 
+    def on_mount(self):
+
+        self.show_squeue()
+        self.update_render = self.set_interval(
+            1, self.show_squeue
+        ) 
+
+    
+    def show_squeue(self):
+        cmd = f'squeue --me -o "%.18i %.9P %.18j %.8u %.2t %.10M %.6D %.20R %.10Q %.20b" --sort="-Q"'
+        _, output = subprocess.getstatusoutput(cmd)
+
+        static = self.query_one('#squeue')
+        static.update(" > "+cmd+"\n\n"+output)
+
+
+
+class Usage(Screen):
     COMMANDS = {Search}
-    CSS_PATH = "style.tcss"
-    BINDINGS = [Binding("d", "toggle_dark", "Toggle dark mode", show=False),
+    TITLE = 'Usage'
+    BINDINGS = [('w', 'app.cycle_mode', 'Show Queue'),
                 ("r", "refresh", "Refresh"),
                 Binding("o", "cycle_partition_b", "", show=False),
                 ("p", "cycle_partition", "Change Partition"),
@@ -348,26 +380,16 @@ class Slurm(App):
                 Binding("pagedown", "scrolldown", "Scroll Down", show=False, priority=True),
                 Binding("home", "home", "Scroll Up", show=False, priority=True),
                 Binding("end", "end", "Scroll Down", show=False, priority=True),    
-                Binding("s", "screens", "", show=False),    
-                Binding('n', 'getnames', 'Show Names', show=False),
-                ("q", "quit", "Quit"),
-                ("?", 'help', 'Help'),
-               ]
+                Binding('n', 'getnames', 'Show Names', show=False),]
 
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
         yield Header()
-        yield Footer()
         yield Horizontal(Vertical(MyDataTable(id='nodes'), Vertical(id='accounts'), id='left'), 
                         Vertical(Static(), DataTable(show_cursor=False, id='details'), id='right'))
-
-    def action_toggle_dark(self) -> None:
-        """An action to toggle dark mode."""
-        self.dark = not self.dark
+        yield Footer()
 
     def on_mount(self) -> None:
 
-        self.me = subprocess.getstatusoutput('echo $LOGNAME')[1]
         data_table = self.query_one('DataTable#nodes')
         data_table.add_columns("Node", "Available CPU", "Available GPU", "Unrequested Memory", 'Free Memory')
         data_table.cursor_type = 'row'
@@ -378,27 +400,8 @@ class Slurm(App):
         detail_table.zebra_stripes = True
         detail_table.can_focus=False
 
-        home = expanduser("~")
-        if os.path.exists(os.path.join(home, '.jihoon', 'settings.json')):
-
-            try:
-                init_setting = json.load(open(os.path.join(home, '.jihoon', 'settings.json')))
-            except:
-                init_setting = {}
-        else:
-            init_setting = {}
-
-        if os.path.exists(os.path.join(home, '.jihoon', 'names.json')):
-            try:
-                self.names = json.load(open(os.path.join(home, '.jihoon', 'names.json')))
-            except:
-                self.names = {}
-        else:
-            self.names = {}
-
-        self.dark= init_setting['dark'] if 'dark' in init_setting else False
         self.sub_title = ''
-        self.partition= init_setting['partition'] if 'partition' in init_setting else 'all'
+        self.partition= self.app.init_setting['partition'] if 'partition' in self.app.init_setting else 'all'
         self.title = self.partition
         self.partition_cycle = None
         self.vl = self.query_one('Vertical#left')
@@ -498,7 +501,6 @@ class Slurm(App):
         self.update_subtitle()
 
     def update_subtitle(self):
-
         def whenago(seconds):
             if seconds < 60:
                 return f'{int(seconds)} seconds'
@@ -507,63 +509,27 @@ class Slurm(App):
             
         self.sub_title = f'Last refreshed {whenago(time.time()-self.updated_time)} ago'
 
-    def action_cycle_partition(self):
-        self.partition_cycle.rotate(-1)
-        self.partition = self.partition_cycle[0]
-        self.title = self.partition
-        asyncio.create_task(self.action_refresh(changed=True))
+    def action_getnames(self, refresh=True):
 
-    def action_cycle_partition_b(self):
+        allthename = set([job['username'] for node in self.data_of_partition['all']['data_of_nodes'].values() for job in node['jobs']])
         
-        self.partition_cycle.rotate(1)
-        self.partition = self.partition_cycle[0]
 
+        missingname = allthename - set(self.app.names.keys())
 
-        self.title = self.partition
-        asyncio.create_task(self.action_refresh(changed=True))
+        try:
+            got_names = get_peoplename(list(missingname))
+        except:
+            self.notify('Cannot load new names!\nsome issue with getting the name from CS mail server!')
 
-    def action_scrollup(self):
-        self.vl.scroll_up(animate=False)
+            return
 
-    def action_scrolldown(self):
-        self.vl.scroll_down(animate=False)
+        if refresh:
+            self.notify(f'Got {len(got_names)} new names:\n{",".join(list(got_names.keys()))}')
 
-    def action_home(self):
-        data_table = self.query_one('Vertical#left')
-        data_table.scroll_home()
-        pass
+        self.app.names = {**self.app.names, **got_names}
 
-    def action_end(self):
-        data_table = self.query_one('Vertical#left')
-        data_table.scroll_end()
-
-    def action_help(self):
-
-        data_table = self.query_one('Vertical#left')
-        data_table = self.query_one('Vertical#right')
-
-        if os.path.exists("./info.txt"): # if binary
-            info = open("./info.txt").read()
-        else:
-            __location__ = os.path.realpath( # if running from python
-        os.path.join(os.getcwd(), os.path.dirname(__file__)))
-            info = open(os.path.join(__location__, 'info.txt')).read()
-        self.push_screen(InfoScreen(info))
-
-    def action_quit(self):
-        home = expanduser("~")
-        
-        os.makedirs(os.path.join(home, '.jihoon'), exist_ok=True)
-        json.dump({'version':0, 'dark':self.dark, 'partition':self.partition}, open(os.path.join(home, '.jihoon', 'settings.json'), 'w'))
-        json.dump(self.names, open(os.path.join(home, '.jihoon', 'names.json'), 'w'))
-        
-        self.exit()
-
-    def change_partition(self, partition):
-        self.partition = partition
-        self.title = self.partition
-        asyncio.create_task(self.action_refresh())
-
+        if refresh:
+            asyncio.create_task(self.action_refresh())
 
     def on_data_table_row_selected(self, message):
 
@@ -638,34 +604,40 @@ class Slurm(App):
             except:
                 self.row_key = None
 
-    def action_getnames(self, refresh=True):
+    def action_cycle_partition(self):
+        self.partition_cycle.rotate(-1)
+        self.partition = self.partition_cycle[0]
+        self.title = self.partition
+        asyncio.create_task(self.action_refresh(changed=True))
 
-        allthename = set([job['username'] for node in self.data_of_partition['all']['data_of_nodes'].values() for job in node['jobs']])
+    def action_cycle_partition_b(self):
         
+        self.partition_cycle.rotate(1)
+        self.partition = self.partition_cycle[0]
 
-        missingname = allthename - set(self.names.keys())
 
-        try:
-            got_names = get_peoplename(list(missingname))
-        except:
-            self.notify('Cannot load new names!\nsome issue with getting the name from CS mail server!')
+        self.title = self.partition
+        asyncio.create_task(self.action_refresh(changed=True))
 
-            return
+    def action_scrollup(self):
+        self.vl.scroll_up(animate=False)
 
-        if refresh:
-            self.notify(f'Got {len(got_names)} new names:\n{",".join(list(got_names.keys()))}')
+    def action_scrolldown(self):
+        self.vl.scroll_down(animate=False)
 
-        self.names = {**self.names, **got_names}
+    def action_home(self):
+        data_table = self.query_one('Vertical#left')
+        data_table.scroll_home()
+        pass
 
-        if refresh:
-            asyncio.create_task(self.action_refresh())
-
-    def action_screens(self, **kwargs):
-
-        home = expanduser("~")
-        filename = 'screenshot_{date:%Y-%m-%d_%H-%M-%S}.svg'.format( date=datetime.datetime.now() )
-        self.action_screenshot(filename=filename, path=home)
-        self.notify(f'Screenshot added to your home directory.\n{os.path.join(home,filename)}')
+    def action_end(self):
+        data_table = self.query_one('Vertical#left')
+        data_table.scroll_end()
+  
+    def change_partition(self, partition):
+        self.partition = partition
+        self.title = self.partition
+        asyncio.create_task(self.action_refresh())
 
     def on_key(self, event):
 
@@ -734,7 +706,109 @@ class Slurm(App):
             except Exception as e:
                 self.notify('Some error happened but I put try-except, so its okay. \n'+str(e))
 
+
+class Main(App):
+    COMMANDS = {}
+    BINDINGS = [
+                Binding("d", "toggle_dark", "Toggle dark mode", show=False),
+                ("q", "quit", "Quit"),
+                ("?", 'help', 'Help'),    
+                Binding("s", "screens", "", show=False),    
+    ]
+    MODES = {
+        "queue": Queue,  
+        "usage": Usage,
+    }
+    CSS_PATH = "style.tcss"
+
+    def on_mount(self) -> None:
+        self.dark = False
+        self.me = subprocess.getstatusoutput('echo $LOGNAME')[1]
+
+        home = expanduser("~")
+        if os.path.exists(os.path.join(home, '.jihoon', 'settings.json')):
+            try:
+                init_setting = json.load(open(os.path.join(home, '.jihoon', 'settings.json')))
+            except:
+                init_setting = {}
+        else:
+            init_setting = {}
+        
+        if os.path.exists(os.path.join(home, '.jihoon', 'names.json')):
+            try:
+                self.app.names = json.load(open(os.path.join(home, '.jihoon', 'names.json')))
+            except:
+                self.names = {}
+        else:
+            self.names = {}
+
+        self.dark= init_setting['dark'] if 'dark' in init_setting else False
+        self.init_setting = init_setting
+        if os.path.exists(os.path.join(home, '.jihoon', 'names.json')):
+            try:
+                self.names = json.load(open(os.path.join(home, '.jihoon', 'names.json')))
+            except:
+                self.names = {}
+        else:
+            self.names = {}
+        
+        self.switch_mode("usage")
+
+    def action_cycle_mode(self) -> None:
+        
+        for stacks in self._screen_stacks.values():
+            for screen in stacks:
+                if isinstance(screen, self.MODES[self._current_mode]):
+
+                    for timer in screen._timers:
+                        timer.pause()
+
+        if self._current_mode == 'queue':
+            self.switch_mode('usage')
+        else:
+            self.switch_mode('queue')  
+            
+        for stacks in self._screen_stacks.values():
+            for screen in stacks:
+                if isinstance(screen, self.MODES[self._current_mode]):
+
+                    for timer in screen._timers:
+                        timer.resume()
+                        
+
+    def action_help(self):
+        self.push_screen(InfoScreen())
+
+    def action_quit(self):
+        home = expanduser("~")
+        
+        os.makedirs(os.path.join(home, '.jihoon'), exist_ok=True)
+
+        settings = self.init_setting
+        settings['version']= 0
+        settings['dark'] = self.dark
+        
+        for stacks in self._screen_stacks.values():
+            for screen in stacks:
+                if isinstance(screen, Usage):
+                    settings['partition'] = screen.partition
+
+        json.dump(settings, open(os.path.join(home, '.jihoon', 'settings.json'), 'w'))
+        json.dump(self.names, open(os.path.join(home, '.jihoon', 'names.json'), 'w'))
+        
+        self.exit()
+    
+    def action_screens(self, **kwargs):
+
+        home = expanduser("~")
+        filename = 'screenshot_{date:%Y-%m-%d_%H-%M-%S}.svg'.format( date=datetime.datetime.now() )
+        self.action_screenshot(filename=filename, path=home)
+        self.notify(f'Screenshot added to your home directory.\n{os.path.join(home,filename)}')
+
+
+
+
 if __name__ == "__main__":
-    app = Slurm()
+    app = Main()
     app.run()
     

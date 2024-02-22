@@ -1,13 +1,3 @@
-BSOD {
-    align: center middle;
-    background: blue;
-    color: white;
-}
-
-BSOD>Static {
-    width: 70;
-}
-
 InfoScreen {
     align: center middle;
 }

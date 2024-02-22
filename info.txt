@@ -2,9 +2,21 @@
 
 Slurm Viewer  
 by Jihoon  
-Ver. 1.0.3  
+Ver. 2.0.0
 
-Navigate:  
+## Keys: (that can be used anywhere in the program)
+- D: Toggle dark mode on and off
+- S: Take a screenshot, and save to your home directory.
+- ?: How-to Screen. (This screen)
+- Q: Quit.
+- ctrl + \\: Action Palette. You can type the partition you want to go from here as well. 
+- W: You can swich from **Node Usage Screen** to **Queue Screen**.
+
+# Screen 1: Node Usage
+
+This screen shows curent node usage of each partitions. 
+
+## Navigate:  
 The tool works with both mouse and keyboard
 - Click and Mouse scroll
 - Page Up, Down, Home, End: Scroll
@@ -12,18 +24,18 @@ The tool works with both mouse and keyboard
 - Tab, Shift+Tab: Move between different account usage
 - O,P or Left, Right: Move between partitions.
 
-
-Keys:
-- D: Toggle dark mode on and off
+## Keys:
 - R: Refresh. This tool does not show in real-time! You need to refresh manually.
-- S: Take a screenshot, and save to your home directory.
 - N: Fetch all the unknown names.
-- ?: How-to Screen. (This screen)
-- Q: Quit.
-- ctrl + \\: Action Palette. You can type the partition you want to go from here as well. 
 
+# Screen 2: Queue
+
+This screen shows my slurm queue. 
+
+
+# Settings
 
 Settings are saved in ~/.jihoon. We currently store:  
-- Last visited partition, so that when startup, the app will show the same partition.
+- Last visited partition in Node Usage, so that when startup, the app will show the same partition.
 - Dark/Light mode settings
 - NetID to real name. (You might want to copy this from Ionic to Neuronic)

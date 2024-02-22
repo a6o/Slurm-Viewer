@@ -29,3 +29,6 @@ Initial Program
 - Memory usage and GPU usage of a node is coming from sinfo, not by adding up all the jobs. 
 - Red if draining.
 - fetching name works in both cluster.
+
+### v2.0.0
+- Added a screen for showing squeue
